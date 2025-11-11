@@ -14,11 +14,11 @@ cd server
 ```
 
 2. (Recommended) Create and activate a virtual environment:
-   - Windows:
-   ```bash
-   python -m venv .venv
-   .venv\Scripts\activate
-   ```
+- Windows:
+  ```bash
+  python -m venv .venv
+  .venv\Scripts\activate
+  ```
 
 3. Install dependencies:
 ```bash
@@ -49,3 +49,6 @@ npm run dev
 4. Access the application
 After starting the backend, open a web browser and visit `http://localhost:8080`
 The default password is stored in the .password file. The first time it is created, a password will be generated and output in the logs.
+
+## License
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
