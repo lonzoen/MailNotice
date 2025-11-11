@@ -1,0 +1,14 @@
+[
+  {
+    "name": "QQ",
+    "imap": "imap.qq.com"
+  },
+  {
+    "name": "126",
+    "imap": "imap.126.com"
+  },
+  {
+    "name": "Gmail",
+    "imap": "imap.gmail.com"
+  }
+]
