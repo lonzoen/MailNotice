@@ -15,10 +15,10 @@ cd server
 
 2. (Recommended) Create and activate a virtual environment:
 - Windows:
-  ```bash
-  python -m venv .venv
-  .venv\Scripts\activate
-  ```
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+```
 
 3. Install dependencies:
 ```bash
