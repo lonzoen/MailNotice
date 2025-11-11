@@ -84,7 +84,9 @@ yarn-error.log*
 server/.venv/
 server/__pycache__/
 server/data.db
-server/static/  # 静态文件目录，构建生成的文件
+server/static/
+!server/static/.gitkeep
+
 
 # Web specific
 web/node_modules/

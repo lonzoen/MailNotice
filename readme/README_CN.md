@@ -12,11 +12,11 @@ cd server
 ```
 
 2. （推荐）创建并激活虚拟环境:
-   - Windows:
-   ```bash
-   python -m venv .venv
-   .venv\Scripts\activate
-   ```
+- Windows:
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+```
 
 3. 安装依赖:
 ```bash
@@ -47,3 +47,7 @@ npm run dev
 4. 访问应用
 后端启动后，通过浏览器访问 `http://localhost:8080`
 默认密码存储在.password文件中，第一次创建会生成密码并输出在日志中
+
+## License
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
