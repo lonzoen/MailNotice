@@ -23,12 +23,23 @@ logger = logging.getLogger(__name__)
 class AuthMiddleware(BaseHTTPMiddleware):
     """鉴权中间件"""
     
+    # 类变量，用于缓存密码，避免重复读取文件
+    _stored_password_cache = None
+    _password_file_checked = False
+    
     def __init__(self, app):
         super().__init__(app)
         self.config = get_config()
         # 从.password文件读取密码
         self.password_file = os.path.join(os.path.dirname(__file__), "..", "..", ".password")
-        self.stored_password = self._read_password_file()
+        
+        # 只在第一次实例化时读取密码文件
+        if not AuthMiddleware._password_file_checked:
+            AuthMiddleware._stored_password_cache = self._read_password_file()
+            AuthMiddleware._password_file_checked = True
+        
+        self.stored_password = AuthMiddleware._stored_password_cache
+        
         # 不需要鉴权的路径
         self.excluded_paths = {
             "/docs",
@@ -40,11 +51,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
     
     def _read_password_file(self) -> str:
         """
-        从.password文件读取密码，不生成应急密码
+        从.password文件读取密码，如果文件不存在则自动创建并生成随机密码
         
         Returns:
             str: 存储的密码
-            如果密码文件不存在、内容为空或读取异常，返回空字符串
+            如果密码文件不存在，会自动创建并生成随机密码
         """
         try:
             if os.path.exists(self.password_file):
@@ -52,16 +63,45 @@ class AuthMiddleware(BaseHTTPMiddleware):
                     password = f.read().strip()
                     
                     if not password:
-                        logger.warning("密码文件存在但内容为空")
-                        return ""
+                        logger.warning("密码文件存在但内容为空，将重新生成密码")
+                        return self._create_password_file()
                     
                     logger.info(f"成功从文件读取密码，密码长度: {len(password)}")
                     return password
             else:
-                logger.warning(f"密码文件不存在: {self.password_file}")
-                return ""
+                logger.info(f"密码文件不存在，将自动创建密码文件: {self.password_file}")
+                return self._create_password_file()
         except Exception as e:
             logger.error(f"读取.password文件异常: {str(e)}")
+            return ""
+    
+    def _create_password_file(self) -> str:
+        """
+        创建密码文件并生成随机密码
+        
+        Returns:
+            str: 生成的随机密码
+        """
+        import secrets
+        import string
+        
+        # 生成16位随机密码（包含字母、数字和特殊字符）
+        alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+        password = ''.join(secrets.choice(alphabet) for _ in range(16))
+        
+        try:
+            # 确保目录存在
+            os.makedirs(os.path.dirname(self.password_file), exist_ok=True)
+            
+            # 写入密码文件
+            with open(self.password_file, 'w', encoding='utf-8') as f:
+                f.write(password)
+            
+            logger.info(f"生成的随机密码: {password}")
+
+            return password
+        except Exception as e:
+            logger.error(f"创建密码文件失败: {str(e)}")
             return ""
 
     
