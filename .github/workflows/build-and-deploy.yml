@@ -18,32 +18,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      # 登录到Docker Hub（如果需要推送镜像）
-      - name: Login to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_HUB_USERNAME }}
-          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
-
-      # 提取元数据
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v4
-        with:
-          images: your-dockerhub-username/mailnotice
-          tags: |
-            type=sha,format=short
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-
-      # 构建并推送Docker镜像
-      - name: Build and push Docker image
+      # 构建Docker镜像（仅构建，不推送）
+      - name: Build Docker image
         uses: docker/build-push-action@v4
         with:
           context: .
-          push: ${{ github.event_name == 'push' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          push: false
+          tags: mailnotice:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -54,13 +35,3 @@ jobs:
           # 在这里添加测试命令
           echo "Running tests..."
           # 例如：python -m pytest
-
-      # 可选：部署到服务器
-      - name: Deploy to server
-        if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') }}
-        run: |
-          # 这里可以添加部署命令，例如使用SSH连接到服务器并拉取最新镜像
-          # 注意：需要在GitHub仓库的Secrets中配置相关的SSH密钥和服务器信息
-          echo "Deploying to server..."
-          # 例如：
-          # ssh -i ${{ secrets.SSH_PRIVATE_KEY }} user@server "docker pull your-dockerhub-username/mailnotice:${{ steps.meta.outputs.version }} && docker-compose up -d"
