@@ -2,8 +2,8 @@ import axios from 'axios'
 import { ElMessage } from 'element-plus'
 
 // API服务配置
-// 直接访问后端服务器地址，后端已配置允许跨域
-const API_BASE_URL = 'http://localhost:8080/api'
+// 使用相对路径，确保在Docker环境中也能正常工作
+const API_BASE_URL = '/api'
 
 // 创建axios实例
 const apiClient = axios.create({

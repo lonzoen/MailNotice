@@ -1,7 +1,9 @@
-pydantic
-IMAPClient==3.0.1
-requests==2.32.5
-peewee==3.18.3
 fastapi==0.121.1
 uvicorn[standard]==0.38.0
+pydantic
+peewee==3.18.3
+IMAPClient==3.0.1
 APScheduler==3.11.1
+requests==2.32.5
+httpx
+pytz==2025.2
