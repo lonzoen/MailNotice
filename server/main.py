@@ -222,7 +222,7 @@ if __name__ == "__main__":
 
     uvicorn.run(
         "main:app",
-        host="localhost",
+        host="0.0.0.0",
         port=8080,
         reload=config.API_RELOAD,  # 根据配置设置reload
         log_config=log_config
