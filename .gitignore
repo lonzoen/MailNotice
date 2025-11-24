@@ -84,7 +84,7 @@ yarn-error.log*
 server/.venv/
 server/__pycache__/
 server/data.db
-server/static/
+server/static/*
 !server/static/.gitkeep
 
 

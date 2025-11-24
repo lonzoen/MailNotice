@@ -6,6 +6,13 @@ on:
     tags: [ 'v*' ]
   pull_request:
     branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      custom_tag:
+        description: '自定义Docker镜像标签（可选）'
+        required: false
+        type: string
+        default: ''
 
 jobs:
   build-and-push:
@@ -42,6 +49,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha
+            ${{ github.event.inputs.custom_tag && format('custom={0}', github.event.inputs.custom_tag) || '' }}
 
       # 构建并推送Docker镜像到GitHub私有仓库
       - name: Build and push Docker image

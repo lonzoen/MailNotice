@@ -123,6 +123,13 @@ class AuthMiddleware(BaseHTTPMiddleware):
         
         # 检查是否为API路径
         if request.url.path.startswith("/api/"):
+            # 开发模式下禁用密码验证
+            if self.config.DEBUG:
+                logger.info("开发模式：密码验证已禁用")
+                # 继续处理请求，不进行密码验证
+                response = await call_next(request)
+                return response
+            
             try:
                 # 获取密码（从Header中获取）
                 password = self._extract_password(request)
