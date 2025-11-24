@@ -167,9 +167,7 @@ const loadEmailServers = async () => {
     emailServers.value = response.data || []
   } catch (error) {
     console.error('加载邮箱服务商失败:', error)
-    // 显示后端返回的具体错误信息
-    const errorMessage = error.message || error.data?.message || '加载邮箱服务商失败'
-    ElMessage.error(errorMessage)
+    // API拦截器已经显示过错误信息，这里只处理业务逻辑
     emailServers.value = []
   }
 }
@@ -178,15 +176,18 @@ const loadEmailServers = async () => {
 const loadNoticeChannels = async () => {
   try {
     const response = await apiClient.getNoticeChannels()
+    // 确保response.data是数组，如果不是则转换为数组或使用空数组
+    const data = Array.isArray(response.data) ? response.data : []
     // 将API返回的格式转换为 {channel_id: label} 的映射对象
     const channelsMap = {}
-    response.data.forEach(item => {
+    data.forEach(item => {
       const [channelId, label] = Object.entries(item)[0]
       channelsMap[channelId] = label
     })
     noticeChannels.value = channelsMap
   } catch (error) {
     console.error('加载通知渠道失败:', error)
+    // API拦截器已经显示过错误信息，这里只处理业务逻辑
     noticeChannels.value = {}
   }
 }
@@ -196,7 +197,17 @@ const loadMailConfigs = async () => {
   loading.value = true
   try {
     const response = await apiClient.getAllMailConfigs()
-    mailConfigs.value = response.data.map(item => ({
+    
+    // 检查响应是否包含错误信息（来自API拦截器）
+    if (response.data && typeof response.data === 'object' && response.data.success === false) {
+      // 如果是错误响应，抛出错误让catch块处理
+      throw new Error(response.data.message || '加载邮箱配置失败')
+    }
+    
+    // 确保response.data是数组，如果不是则转换为数组或使用空数组
+    const data = Array.isArray(response.data) ? response.data : []
+    
+    mailConfigs.value = data.map(item => ({
       id: item.account, // 使用account作为唯一标识
       account: item.account || '未设置',
       server_name: item.server_name || '未设置',
@@ -205,9 +216,7 @@ const loadMailConfigs = async () => {
     }))
   } catch (error) {
     console.error('加载邮箱配置失败:', error)
-    // 显示后端返回的具体错误信息
-    const errorMessage = error.message || error.data?.message || '加载邮箱配置失败'
-    ElMessage.error(errorMessage)
+    // API拦截器已经显示过错误信息，这里只处理业务逻辑
     // 如果后端不可用，显示空列表
     mailConfigs.value = []
   } finally {
@@ -223,19 +232,16 @@ const runSchedule = async () => {
   try {
     const response = await apiClient.runSchedule()
     
-    // 根据后端返回格式处理响应
-    if (response.data.success) {
-      ElMessage.success({
-        message: response.data.message || '任务执行成功！',
-        duration: 5000
-      })
-    } else {
-      throw new Error(response.data.message || '任务执行失败')
+    // 检查响应是否包含错误信息（来自API拦截器）
+    if (response.data && typeof response.data === 'object' && response.data.success === false) {
+      // 如果是错误响应，抛出错误让catch块处理
+      throw new Error(response.data.message || '运行定时任务失败')
     }
+    
+    ElMessage.success('定时任务执行成功')
   } catch (error) {
-    console.error('执行定时任务失败:', error)
-    const errorMessage = error.message || error.data?.message || '任务执行失败，请检查网络连接或后端服务'
-    ElMessage.error(errorMessage)
+    console.error('运行定时任务失败:', error)
+    // API拦截器已经显示过错误信息，这里只处理业务逻辑
   } finally {
     isRunning.value = false
   }
@@ -273,15 +279,16 @@ const testConfig = async (config) => {
     
     const response = await apiClient.testSingleMailConfig(testData)
     
-    if (response.data.success) {
-      ElMessage.success(`测试成功: ${response.data.message || '配置正常'}`)
-    } else {
-      ElMessage.error(`测试失败: ${response.data.message || '配置异常'}`)
+    // 检查响应是否包含错误信息（来自API拦截器）
+    if (response.data && typeof response.data === 'object' && response.data.success === false) {
+      // 如果是错误响应，抛出错误让catch块处理
+      throw new Error(response.data.message || '测试邮箱配置失败')
     }
+    
+    ElMessage.success('邮箱配置测试成功')
   } catch (error) {
-    console.error('测试配置失败:', error)
-    const errorMessage = error.message || error.data?.message || '测试失败，请检查配置'
-    ElMessage.error(`测试失败: ${errorMessage}`)
+    console.error('测试邮箱配置失败:', error)
+    // API拦截器已经显示过错误信息，这里只处理业务逻辑
   } finally {
     loading.value = false
   }
@@ -296,76 +303,59 @@ const editConfig = (config) => {
 // 删除配置
 const deleteConfig = async (account) => {
   try {
-    await ElMessageBox.confirm('确定要删除这个邮箱配置吗？', '提示', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    })
     
-    await mailConfigAPI.delete(account)
+    await apiClient.deleteMailConfig(account)
     mailConfigs.value = mailConfigs.value.filter(config => config.account !== account)
     ElMessage.success('删除成功')
   } catch (error) {
     if (error !== 'cancel') {
       console.error('删除配置失败:', error)
-      // 显示后端返回的具体错误信息
-      const errorMessage = error.message || error.data?.message || '删除失败，请重试'
-      ElMessage.error(errorMessage)
+      // API拦截器已经显示过错误信息，这里只处理业务逻辑
     }
   }
 }
 
 // 提交表单
 const submitForm = async () => {
-  try {
-    submitting.value = true
-    
-    if (showEditDialog.value) {
-      // 编辑配置，直接调用update API
-      const response = await mailConfigAPI.update({
-        account: formData.value.account,
-        auth_code: formData.value.authorization,
-        server: '', // 服务器信息需要从服务商获取
-        server_name: formData.value.server_name,
-        channel_id: formData.value.channel_id || 1 // 使用表单中选择的渠道ID，如果未选择则使用默认值1
-      })
-      
-      // 更新本地数据
-      const index = mailConfigs.value.findIndex(c => c.account === formData.value.account)
-      if (index !== -1) {
-        mailConfigs.value[index] = { 
-          ...formData.value,
-          id: formData.value.account // 使用account作为唯一标识
+  if (!formRef.value) return
+  await formRef.value.validate(async (valid) => {
+    if (valid) {
+      try {
+        let response
+        if (showEditDialog.value) {
+          // 编辑模式
+          response = await apiClient.updateMailConfig(formData.value.account, {
+            account: formData.value.account,
+            auth_code: formData.value.authorization,
+            server: '',
+            server_name: formData.value.server_name,
+            channel_id: formData.value.channel_id || 1
+          })
+        } else {
+          // 新增模式
+          response = await apiClient.createMailConfig({
+            account: formData.value.account,
+            auth_code: formData.value.authorization,
+            server: '',
+            server_name: formData.value.server_name,
+            channel_id: formData.value.channel_id || 1
+          })
         }
+        
+        // 检查响应是否成功
+        if (response.data && response.data.success) {
+          ElMessage.success(showEditDialog.value ? '更新成功' : '添加成功')
+          closeDialog()
+          loadMailConfigs() // 重新加载数据
+        } else {
+          // API拦截器已经显示过错误信息，这里只处理业务逻辑
+        }
+      } catch (error) {
+        console.error('操作失败:', error)
+        // API拦截器已经显示过错误信息，这里只处理业务逻辑
       }
-      ElMessage.success('邮箱配置更新成功')
-    } else {
-      // 新增配置，直接调用create API
-      const response = await mailConfigAPI.create({
-        account: formData.value.account,
-        auth_code: formData.value.authorization,
-        server: '', // 服务器信息需要从服务商获取
-        server_name: formData.value.server_name,
-        channel_id: formData.value.channel_id || 1 // 使用表单中选择的渠道ID，如果未选择则使用默认值1
-      })
-      
-      // 添加到本地列表
-      mailConfigs.value.unshift({
-        ...formData.value,
-        id: formData.value.account, // 使用account作为唯一标识
-        createTime: new Date().toISOString()
-      })
-      ElMessage.success('邮箱配置创建成功')
     }
-    closeDialog()
-  } catch (error) {
-    console.error('保存邮箱配置失败:', error)
-    // 显示后端返回的具体错误信息
-    const errorMessage = error.message || error.data?.message || '操作失败，请重试'
-    ElMessage.error(errorMessage)
-  } finally {
-    submitting.value = false
-  }
+  })
 }
 
 // 关闭对话框

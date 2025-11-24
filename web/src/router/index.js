@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import Layout from '../components/Layout.vue'
+import Layout from '../pages/Layout.vue'
 import Notice from '../pages/Notice.vue'
 import Mail from '../pages/Mail.vue'
 

@@ -2,13 +2,18 @@ import axios from 'axios'
 import { ElMessage } from 'element-plus'
 
 // API服务配置
-// 使用相对路径，确保在Docker环境中也能正常工作
-const API_BASE_URL = '/api'
+// 直接从环境变量获取API基础URL
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
+
+// 获取当前环境
+const APP_ENV = import.meta.env.VITE_APP_ENV || 'production'
+
+console.log(`当前环境: ${APP_ENV}, API基础URL: ${API_BASE_URL}`)
 
 // 创建axios实例
 const apiClient = axios.create({
     baseURL: API_BASE_URL,
-    timeout: 10000,
+    timeout: 5000,
     headers: {
         'Content-Type': 'application/json',
     },
@@ -37,36 +42,69 @@ apiClient.interceptors.request.use(
 
 // 响应拦截器
 apiClient.interceptors.response.use(
-    (response) => response,
-    (error) => {
-        // 处理401未授权错误
-        if (error.response?.status === 401) {
+    (response) => {
+        // 检查响应状态码，处理401等错误状态
+        if (response.status === 401) {
             localStorage.removeItem('authPassword')
-            ElMessage.error(error.response.data.message)
-            // 返回一个已解决的Promise，避免错误继续向上抛出
-            return Promise.resolve({ data: { success: false, message: '未授权，请重新登录' } })
+            const errorMessage = response.data.message || '未授权，请重新登录'
+            ElMessage.error(errorMessage)
+            // 延迟重定向，确保用户能看到错误消息
+            setTimeout(() => {
+                window.location.href = '/#/login'
+            }, 10000)
+            // 返回被拒绝的Promise，让调用方进入catch块
+            return Promise.reject({ 
+                data: { success: false, message: errorMessage },
+                response: response 
+            })
         }
         
-        // 处理其他错误
+        // 处理其他错误状态码（400-599）
+        if (response.status >= 400 && response.status < 600) {
+            const errorMessage = response.data?.message || response.data?.detail || '请求失败'
+            ElMessage.error(errorMessage)
+            // 返回被拒绝的Promise，让调用方进入catch块
+            return Promise.reject({ 
+                data: { success: false, message: errorMessage },
+                response: response 
+            })
+        }
+        
+        // 正常响应（200-399）直接返回
+        return response
+    },
+    (error) => {
+        // 处理网络错误和配置错误
         if (error.response) {
             const { status, data } = error.response
             const errorMessage = data?.message || data?.detail || '请求失败'
             ElMessage.error(errorMessage)
-            // 返回一个已解决的Promise，避免错误继续向上抛出
-            return Promise.resolve({ data: { success: false, message: errorMessage } })
+            // 返回被拒绝的Promise，让调用方进入catch块
+            return Promise.reject({ 
+                data: { success: false, message: errorMessage },
+                response: error.response 
+            })
         }
         
         if (error.request) {
             console.error('API请求失败: 网络错误', error.request)
-            ElMessage.error('网络连接失败，请检查服务器连接')
-            // 返回一个已解决的Promise，避免错误继续向上抛出
-            return Promise.resolve({ data: { success: false, message: '网络连接失败，请检查服务器连接' } })
+            const errorMessage = '网络连接失败，请检查服务器连接'
+            ElMessage.error(errorMessage)
+            // 返回被拒绝的Promise，让调用方进入catch块
+            return Promise.reject({ 
+                data: { success: false, message: errorMessage },
+                request: error.request 
+            })
         }
         
         console.error('API请求失败: 配置错误', error.message)
-        ElMessage.error('请求配置错误，请检查网络设置')
-        // 返回一个已解决的Promise，避免错误继续向上抛出
-        return Promise.resolve({ data: { success: false, message: '请求配置错误，请检查网络设置' } })
+        const errorMessage = '请求配置错误，请检查网络设置'
+        ElMessage.error(errorMessage)
+        // 返回被拒绝的Promise，让调用方进入catch块
+        return Promise.reject({ 
+            data: { success: false, message: errorMessage },
+            message: error.message 
+        })
     }
 )
 

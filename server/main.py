@@ -187,7 +187,7 @@ if __name__ == "__main__":
     
     # 创建命令行参数解析器
     parser = argparse.ArgumentParser(description='邮件通知系统API服务器')
-    parser.add_argument('--env', '-e', choices=['dev', 'prod'], default='dev',
+    parser.add_argument('--env', '-e', choices=['dev', 'prod'], default='prod',
                        help='运行环境: dev (开发环境) 或 prod (生产环境)')
     
     # 解析命令行参数
@@ -207,12 +207,6 @@ if __name__ == "__main__":
         logger.info("ReDoc文档地址: http://localhost:8080/redoc")
     else:
         logger.info("API文档已禁用")
-    
-    # 根据环境设置日志级别
-    if args.env == 'dev':
-        root_logger.setLevel(logging.DEBUG)
-    else:
-        root_logger.setLevel(logging.INFO)
 
     # 使用统一的日志配置
     log_config = setup_logging_config()

@@ -23,22 +23,11 @@ logger = logging.getLogger(__name__)
 class AuthMiddleware(BaseHTTPMiddleware):
     """鉴权中间件"""
     
-    # 类变量，用于缓存密码，避免重复读取文件
-    _stored_password_cache = None
-    _password_file_checked = False
-    
     def __init__(self, app):
         super().__init__(app)
         self.config = get_config()
         # 从.password文件读取密码
-        self.password_file = os.path.join(os.path.dirname(__file__), "..", "..", ".password")
-        
-        # 只在第一次实例化时读取密码文件
-        if not AuthMiddleware._password_file_checked:
-            AuthMiddleware._stored_password_cache = self._read_password_file()
-            AuthMiddleware._password_file_checked = True
-        
-        self.stored_password = AuthMiddleware._stored_password_cache
+        self.password_file = os.path.join(os.path.dirname(__file__), "..", "..", "data", ".password")
         
         # 不需要鉴权的路径
         self.excluded_paths = {
@@ -48,7 +37,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "/api/login",  # 添加API登录路径
             "/favicon.ico"
         }
-    
+
     def _read_password_file(self) -> str:
         """
         从.password文件读取密码，如果文件不存在则自动创建并生成随机密码
@@ -66,7 +55,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
                         logger.warning("密码文件存在但内容为空，将重新生成密码")
                         return self._create_password_file()
                     
-                    logger.info(f"成功从文件读取密码，密码长度: {len(password)}")
                     return password
             else:
                 logger.info(f"密码文件不存在，将自动创建密码文件: {self.password_file}")
@@ -123,9 +111,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
         
         # 检查是否为API路径
         if request.url.path.startswith("/api/"):
-            # 开发模式下禁用密码验证
+            # 开发模式下任意密码都返回认证通过
             if self.config.DEBUG:
-                logger.info("开发模式：密码验证已禁用")
                 # 继续处理请求，不进行密码验证
                 response = await call_next(request)
                 return response
@@ -144,7 +131,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
                         }
                     )
             except FileNotFoundError as e:
-                logger.error(f"密码验证失败: {str(e)}")
                 return JSONResponse(
                     status_code=500,
                     content={"detail": "系统配置错误: 密码文件不存在"}
@@ -187,8 +173,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
         Returns:
             bool: 验证是否通过
         """
+        # 每次都从文件读取密码
+        stored_password = self._read_password_file()
+        logger.info(f"存储的密码: {stored_password}，输入密码: {password}")
+        
         # 如果存储的密码为空，任何密码都不会验证通过
-        if not self.stored_password:
+        if not stored_password:
             logger.warning("存储的密码为空，无法进行验证")
             return False
             
@@ -197,9 +187,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return False
         
         # 检查密码是否与存储的密码一致
-        if password == self.stored_password:
+        if password == stored_password:
             logger.info("密码验证通过")
             return True
         else:
-            logger.warning(f"密码验证失败，输入密码长度: {len(password)}")
             return False

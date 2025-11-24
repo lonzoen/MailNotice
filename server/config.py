@@ -13,7 +13,7 @@ class Config:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     
     # 数据库配置
-    DATABASE_URL = os.path.join(BASE_DIR, "data.db")
+    DATABASE_URL = os.path.join(BASE_DIR, "data", "data.db")
 
     
     # 邮件服务配置

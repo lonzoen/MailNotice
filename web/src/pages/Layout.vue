@@ -6,6 +6,7 @@
         <el-card class="login-card">
 
           <div class="login-form">
+            <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
             <div class="login-input-group">
               <el-input
                   v-model="password"
@@ -125,6 +126,7 @@ const handleLogin = async (event) => {
       localStorage.setItem('authPassword', password.value)
       isLoggedIn.value = true
       password.value = ''
+      errorMessage.value = ''
 
       ElMessage.success('登录成功')
       
@@ -134,12 +136,13 @@ const handleLogin = async (event) => {
       }
     } else {
       // 登录失败，显示后端返回的错误信息
-      const errorMessage = response.data?.message || '登录失败'
-      ElMessage.error(errorMessage)
+      errorMessage.value = response.data?.message || '登录失败'
     }
   } catch (error) {
-    // 正常情况下不应该进入catch块，因为错误已被拦截器处理
-    console.error('意外的错误:', error)
+    // 现在会正确进入catch块处理错误
+    console.error('登录失败:', error)
+    // 显示后端返回的具体错误信息
+    errorMessage.value = error.data?.message || error.message || '登录失败，请检查网络连接'
   } finally {
     isLoading.value = false
   }
@@ -215,6 +218,12 @@ onUnmounted(() => {
 
 .login-form {
   padding: 20px;
+}
+
+.error-message {
+  color: #f56c6c;
+  margin-bottom: 10px;
+  text-align: center;
 }
 
 .login-input-group {

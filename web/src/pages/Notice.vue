@@ -162,10 +162,17 @@ const maskAppKey = (appKey) => {
 const loadNotificationServers = async () => {
   try {
     const response = await apiClient.getAllNotificationServers()
+    
+    // 检查响应是否包含错误信息（来自API拦截器）
+    if (response.data && typeof response.data === 'object' && response.data.success === false) {
+      // 如果是错误响应，抛出错误让catch块处理
+      throw new Error(response.data.message || '加载通知服务商失败')
+    }
+    
     notificationServers.value = response.data.map(name => ({ name }))
   } catch (error) {
     console.error('加载通知服务商失败:', error)
-    ElMessage.error('加载通知服务商失败')
+    // API拦截器已经显示过错误信息，这里只处理业务逻辑
     // 如果后端不可用，显示空列表
     notificationServers.value = []
   }
@@ -176,6 +183,13 @@ const loadNotices = async () => {
   loading.value = true
   try {
     const response = await apiClient.getAllNoticeConfigs()
+    
+    // 检查响应是否包含错误信息（来自API拦截器）
+    if (response.data && typeof response.data === 'object' && response.data.success === false) {
+      // 如果是错误响应，抛出错误让catch块处理
+      throw new Error(response.data.message || '加载通知方式失败')
+    }
+    
     notices.value = response.data.map(item => ({
       id: item.id,
       server: item.server_name || '未设置',
@@ -184,7 +198,7 @@ const loadNotices = async () => {
     }))
   } catch (error) {
     console.error('加载通知方式失败:', error)
-    ElMessage.error('加载通知方式失败')
+    // API拦截器已经显示过错误信息，这里只处理业务逻辑
     // 如果后端不可用，显示空列表
     notices.value = []
   } finally {
@@ -205,33 +219,35 @@ const editNotice = (notice) => {
 }
 
 // 测试通知方式
-  const testNotice = async (row) => {
-    try {
-      // 准备测试数据
-      const testData = {
-        name: row.channelName,
-        token: row.appKey,
-        server_name: row.server
-      }
-      
-      // 调用测试API
-      const result = await apiClient.testNoticeConfig(testData)
-    
-    if (result.status === 200) {
-      ElMessage.success('测试发送成功')
-    } else {
-      ElMessage.error('测试发送失败')
+const testNotice = async (row) => {
+  try {
+    // 准备测试数据
+    const testData = {
+      name: row.channelName,
+      token: row.appKey,
+      server_name: row.server
     }
+    
+    // 调用测试API
+    const result = await apiClient.testNoticeConfig(testData)
+    
+    // 检查响应是否包含错误信息（来自API拦截器）
+    if (result.data && typeof result.data === 'object' && result.data.success === false) {
+      // 如果是错误响应，抛出错误让catch块处理
+      throw new Error(result.data.message || '测试通知方式失败')
+    }
+    
+    ElMessage.success('测试发送成功')
   } catch (error) {
     console.error('测试通知方式失败:', error)
-    ElMessage.error(`测试失败: ${error.message || '请检查网络连接'}`)
+    // API拦截器已经显示过错误信息，这里只处理业务逻辑
   }
 }
 
 // 删除通知方式
 const deleteNotice = async (id) => {
   try {
-    await ElMessageBox.confirm('确定要删除这个通知方式吗？', '提示', {
+    await ElMessageBox.confirm('此操作将永久删除该通知方式, 是否继续?', '提示', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'warning'
@@ -243,7 +259,7 @@ const deleteNotice = async (id) => {
   } catch (error) {
     if (error !== 'cancel') {
       console.error('删除通知方式失败:', error)
-      ElMessage.error('删除失败，请重试')
+      // API拦截器已经显示过错误信息，这里只处理业务逻辑
     }
   }
 }
@@ -303,7 +319,7 @@ const submitForm = async () => {
     closeDialog()
   } catch (error) {
     console.error('保存通知失败:', error)
-    ElMessage.error('操作失败，请重试')
+    // API拦截器已经显示过错误信息，这里只处理业务逻辑
   } finally {
     submitting.value = false
   }
