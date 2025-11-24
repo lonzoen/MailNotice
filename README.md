@@ -11,18 +11,8 @@ Automatically fetch emails at scheduled times and send notifications.
 
 #### Pull and Run from GitHub Registry
 ```bash
-# 从GitHub私有仓库拉取镜像
-docker pull ghcr.io/lonzoen/mailnotice:latest
 
-# 运行镜像
 docker run -d --name mailnotice -p 8080:8080 ghcr.io/lonzoen/mailnotice:latest
-```
-
-#### Run with Environment Variables
-```bash
-# 使用环境变量运行
-docker run -d --name mailnotice -p 8080:8080 -e APP_ENV=prod ghcr.io/lonzoen/mailnotice:latest
-```
 
 ### Backend Instructions
 1. Navigate to the server directory:
