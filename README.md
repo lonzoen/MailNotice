@@ -1,6 +1,4 @@
-# Mail Notice System
-
-[简体中文](./readme/README_CN.md)
+# Mail Notice
 
 ## Project introduction
 Automatically fetch emails at scheduled times and send notifications.
@@ -10,9 +8,8 @@ Automatically fetch emails at scheduled times and send notifications.
 ### Docker Usage
 
 #### Pull and Run from GitHub Registry
-```bash
 
-docker run -d --name mailnotice -p 8080:8080 ghcr.io/lonzoen/mailnotice:latest
+docker run -d --name mailnotice -p 8080:8080 -v $PWD/data:/app/data ghcr.io/lonzoen/mailnotice:latest
 
 ### Backend Instructions
 1. Navigate to the server directory:

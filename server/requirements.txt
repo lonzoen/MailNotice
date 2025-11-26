@@ -7,3 +7,4 @@ APScheduler==3.11.1
 requests==2.32.5
 httpx
 pytz==2025.2
+python-telegram-bot==22.5

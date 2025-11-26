@@ -50,6 +50,9 @@
             <el-menu-item index="/mail">
               <template #title><span>邮箱配置管理</span></template>
             </el-menu-item>
+            <el-menu-item index="/email-record">
+              <template #title><span>邮件记录管理</span></template>
+            </el-menu-item>
             <el-menu-item index="logout" @click="handleLogout">
               <template #title><span>退出登录</span></template>
             </el-menu-item>

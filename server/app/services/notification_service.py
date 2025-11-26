@@ -2,13 +2,14 @@ from typing import Dict, Any, Coroutine
 import httpx
 import json
 import os
+from telegram import Bot
 
 
 class NotificationService:
     """通知服务类"""
 
     @staticmethod
-    async def send(name: str, key: str, content: str, msg: str, group_id: str = None) -> Dict[str, Any]:
+    async def send(name: str, key: str, content: str, msg: str, group_id: str = None, chat_id: str = None) -> Dict[str, Any]:
         """
         发送通知
         
@@ -18,6 +19,7 @@ class NotificationService:
             content: 通知内容
             msg: 消息内容
             group_id: 群组ID（可选）
+            chat_id: Telegram聊天ID（可选）
             
         Returns:
             发送成功的结果字典
@@ -35,6 +37,8 @@ class NotificationService:
             return await NotificationService._send_chuanxi(server_config, key, content, msg, group_id)
         elif name == "企业微信":
             return await NotificationService._send_wechat_work(server_config, key, content, msg)
+        elif name == "Telegram":
+            return await NotificationService._send_telegram(server_config, key, content, msg, chat_id)
         else:
             raise Exception(f"暂时不支持 '{name}' 的通知服务商配置")
 
@@ -116,6 +120,44 @@ class NotificationService:
                 }
             else:
                 raise Exception(f"企业微信通知发送失败: {response.status_code} - {response.text}")
+
+    @staticmethod
+    async def _send_telegram(server_config: Dict[str, str], key: str, content: str, msg: str, chat_id: str = None) -> Dict[str, Any]:
+        """发送Telegram消息"""
+        try:
+            if not chat_id:
+                return {
+                    "success": False,
+                    "message": "Chat ID不能为空"
+                }
+            
+            # 验证bot token - 使用传入的key参数而不是server_config中的token
+            bot_token = key
+            if not bot_token:
+                return {
+                    "success": False,
+                    "message": "Telegram Bot Token不能为空"
+                }
+            
+            # 使用python-telegram-bot发送消息
+            bot = Bot(token=bot_token)
+            async with bot:
+                await bot.send_message(
+                    text=msg,
+                    chat_id=chat_id,
+                    parse_mode='HTML'
+                )
+            
+            return {
+                "success": True,
+                "message": "Telegram消息发送成功"
+            }
+                
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"发送Telegram消息失败: {str(e)}"
+            }
 
     @staticmethod
     async def _send_generic(server_config: Dict[str, str], key: str, content: str, msg: str) -> Dict[str, Any]:

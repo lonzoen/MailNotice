@@ -27,6 +27,11 @@
             <span class="app-key">{{ maskAppKey(row.appKey) }}</span>
           </template>
         </el-table-column>
+        <el-table-column prop="chatId" label="Chat ID" min-width="150">
+          <template #default="{ row }">
+            <span>{{ maskChatId(row.chatId) || '-' }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="300" fixed="right">
           <template #default="{ row }">
             <el-button 
@@ -79,6 +84,12 @@
             show-password
           />
         </el-form-item>
+        <el-form-item v-if="formData.server === 'Telegram'" label="Chat ID" prop="chatId">
+          <el-input 
+            v-model="formData.chatId" 
+            placeholder="请输入Telegram Chat ID"
+          />
+        </el-form-item>
       </el-form>
       
       <template #footer>
@@ -109,7 +120,8 @@ const formData = reactive({
   id: null,
   server: '',
   channelName: '',
-  appKey: ''
+  appKey: '',
+  chatId: ''
 })
 
 // 计算对话框显示状态
@@ -134,6 +146,18 @@ const formRules = reactive({
   appKey: [
     { required: true, message: '请输入应用密钥', trigger: 'blur' },
     { min: 1, message: '应用密钥不能为空', trigger: 'blur' }
+  ],
+  chatId: [
+    { 
+      validator: (rule, value, callback) => {
+        if (formData.server === 'Telegram' && (!value || value.trim() === '')) {
+          callback(new Error('请输入Telegram Chat ID'))
+        } else {
+          callback()
+        }
+      }, 
+      trigger: 'blur' 
+    }
   ]
 })
 
@@ -152,6 +176,31 @@ const maskAppKey = (appKey) => {
     const firstPart = appKey.substring(0, 4)
     const lastPart = appKey.substring(appKey.length - 4)
     const middleStars = '*'.repeat(8) // 中间8个*
+    return firstPart + middleStars + lastPart
+  }
+}
+
+// 掩码显示Chat ID
+const maskChatId = (chatId) => {
+  if (!chatId) return ''
+  if (typeof chatId === 'number') {
+    chatId = chatId.toString()
+  }
+  
+  if (chatId.length <= 4) {
+    // 如果ID长度小于等于4位，全部显示
+    return chatId
+  } else if (chatId.length <= 8) {
+    // 如果ID长度4-8位，显示前2位和后2位，中间用*填充
+    const firstPart = chatId.substring(0, 2)
+    const lastPart = chatId.substring(chatId.length - 2)
+    const middleStars = '*'.repeat(chatId.length - 4)
+    return firstPart + middleStars + lastPart
+  } else {
+    // 如果ID长度大于8位，显示前3位和后3位，中间用*填充
+    const firstPart = chatId.substring(0, 3)
+    const lastPart = chatId.substring(chatId.length - 3)
+    const middleStars = '*'.repeat(chatId.length - 6)
     return firstPart + middleStars + lastPart
   }
 }
@@ -194,7 +243,8 @@ const loadNotices = async () => {
       id: item.id,
       server: item.server_name || '未设置',
       channelName: item.name || '未设置',
-      appKey: item.token || ''
+      appKey: item.token || '',
+      chatId: item.chat_id || ''
     }))
   } catch (error) {
     console.error('加载通知方式失败:', error)
@@ -225,22 +275,41 @@ const testNotice = async (row) => {
     const testData = {
       name: row.channelName,
       token: row.appKey,
-      server_name: row.server
+      server_name: row.server,
+      chat_id: row.chatId
     }
     
     // 调用测试API
     const result = await apiClient.testNoticeConfig(testData)
     
-    // 检查响应是否包含错误信息（来自API拦截器）
-    if (result.data && typeof result.data === 'object' && result.data.success === false) {
-      // 如果是错误响应，抛出错误让catch块处理
-      throw new Error(result.data.message || '测试通知方式失败')
-    }
+    console.log('测试通知响应:', result)
     
-    ElMessage.success('测试发送成功')
+    // 检查API响应结果
+    if (result.data && typeof result.data === 'object') {
+      // 如果后端返回了成功/失败状态
+      if (result.data.success === true) {
+        ElMessage.success(result.data.message || '测试发送成功')
+      } else if (result.data.success === false) {
+        // 如果后端返回失败状态
+        ElMessage.error(result.data.message || '测试通知失败')
+      } else {
+        // 如果没有明确的状态字段，检查是否包含成功消息
+        if (result.data.message) {
+          ElMessage.success(result.data.message)
+        } else {
+          ElMessage.success('测试发送成功')
+        }
+      }
+    } else if (result.data && typeof result.data === 'string') {
+      // 如果后端直接返回消息字符串
+      ElMessage.success(result.data)
+    } else {
+      // 默认成功
+      ElMessage.success('测试发送成功')
+    }
   } catch (error) {
     console.error('测试通知方式失败:', error)
-    // API拦截器已经显示过错误信息，这里只处理业务逻辑
+    // API拦截器已经显示过错误信息，这里不再显示额外的错误信息
   }
 }
 
@@ -282,7 +351,8 @@ const submitForm = async () => {
         channel_id: formData.id,
         name: formData.channelName,
         server_name: formData.server,
-        token: formData.appKey
+        token: formData.appKey,
+        chat_id: formData.chatId
       };
       
       await apiClient.updateNoticeConfig(updateData)
@@ -301,7 +371,8 @@ const submitForm = async () => {
       const newData = {
         name: formData.channelName,
         server_name: formData.server,
-        token: formData.appKey
+        token: formData.appKey,
+        chat_id: formData.chatId
       };
       
       const response = await apiClient.createNoticeConfig(newData);
@@ -333,7 +404,8 @@ const closeDialog = () => {
     id: null,
     server: '',
     channelName: '',
-    appKey: ''
+    appKey: '',
+    chatId: ''
   })
   
   if (formRef.value) {

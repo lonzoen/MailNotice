@@ -45,6 +45,7 @@ class NotificationChannel(BaseModel):
     name = CharField(max_length=100)  # 渠道名称
     token = CharField(max_length=255)  # 认证令牌
     server_name = CharField(max_length=255)  # 服务器名称
+    chat_id = CharField(max_length=50, null=True)  # Telegram聊天ID（仅Telegram渠道使用）
     
     class Meta:
         table_name = 'notification_channels'
@@ -57,6 +58,7 @@ class EmailContent(BaseModel):
     subject = TextField()  # 邮件主题
     reception_time = DateTimeField()  # 接收时间
     body_text = TextField(null=True)  # 纯文本正文
+    sent = BooleanField(default=False)  # 是否已发送通知
 
     class Meta:
         table_name = 'email_contents'

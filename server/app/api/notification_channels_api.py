@@ -22,6 +22,7 @@ class NotificationChannelCreate(BaseModel):
     name: str
     token: str
     server_name: str
+    chat_id: Optional[str] = None  # Telegram聊天ID
 
 
 class NotificationChannelUpdate(BaseModel):
@@ -29,6 +30,7 @@ class NotificationChannelUpdate(BaseModel):
     token: Optional[str] = None
     server_name: Optional[str] = None
     channel_id: Optional[int] = None
+    chat_id: Optional[str] = None  # Telegram聊天ID
 
 
 # 用于封装update_channel接口参数的模型
@@ -50,7 +52,8 @@ async def create_channel(channel_data: NotificationChannelCreate):
     channel = NotificationChannelRepository.create(
         channel_data.name,
         channel_data.token,
-        channel_data.server_name
+        channel_data.server_name,
+        channel_data.chat_id
     )
     if not channel:
         raise HTTPException(status_code=400, detail="创建失败")
@@ -65,6 +68,7 @@ async def update_channel(request: UpdateChannelRequest):
         request.name,
         request.token,
         request.server_name,
+        request.chat_id
     )
     if not channel:
         raise HTTPException(status_code=404, detail="渠道不存在")
@@ -92,7 +96,8 @@ async def test_channel(channel: NotificationChannelCreate):
             name=channel.server_name,
             key=channel.token,
             content=channel.name,
-            msg="这是一条测试消息"
+            msg="这是一条测试消息",
+            chat_id=channel.chat_id
         )
 
         return result

@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Layout from '../pages/Layout.vue'
 import Notice from '../pages/Notice.vue'
 import Mail from '../pages/Mail.vue'
+import EmailRecord from '../pages/EmailRecord.vue'
 
 const routes = [
   // 主应用页面
@@ -18,6 +19,11 @@ const routes = [
         path: 'mail',
         name: 'Mail',
         component: Mail
+      },
+      {
+        path: 'email-record',
+        name: 'EmailRecord',
+        component: EmailRecord
       }
     ]
   },

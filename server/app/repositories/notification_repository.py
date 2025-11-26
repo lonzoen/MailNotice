@@ -29,17 +29,18 @@ class NotificationChannelRepository:
         return list(NotificationChannel.select().where(NotificationChannel.name == name))
     
     @staticmethod
-    def create(name: str, token: str, server_name: str) -> Optional[NotificationChannel]:
+    def create(name: str, token: str, server_name: str, chat_id: str = None) -> Optional[NotificationChannel]:
         """创建通知渠道"""
         return NotificationChannel.create(
             name=name,
             token=token,
-            server_name=server_name
+            server_name=server_name,
+            chat_id=chat_id
         )
     
     @staticmethod
     def update(channel_id: int, name: str = None, token: str = None, 
-               server_name: str = None) -> Optional[NotificationChannel]:
+               server_name: str = None, chat_id: str = None) -> Optional[NotificationChannel]:
         """更新通知渠道"""
         try:
             channel = NotificationChannel.get(NotificationChannel.id == channel_id)
@@ -49,6 +50,8 @@ class NotificationChannelRepository:
                 channel.token = token
             if server_name is not None:
                 channel.server_name = server_name
+            if chat_id is not None:
+                channel.chat_id = chat_id
             channel.save()
             return channel
         except DoesNotExist:

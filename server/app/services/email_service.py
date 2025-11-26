@@ -81,13 +81,13 @@ class EmailService:
 
     def _extract_email_content(self, email_message) -> str:
         """
-        提取邮件正文
+        提取邮件正文，去除CSS样式
         
         Args:
             email_message: 邮件消息对象
             
         Returns:
-            str: 邮件正文文本
+            str: 邮件正文文本（已去除CSS样式）
         """
         body_text = ''
 
@@ -113,7 +113,7 @@ class EmailService:
                         except Exception as e:
                             logger.warning(f"提取文本正文失败: {e}")
 
-                    # 对于HTML邮件，提取纯文本内容
+                    # 对于HTML邮件，提取纯文本内容并去除CSS
                     elif content_type == 'text/html' and 'attachment' not in content_disposition:
                         try:
                             payload = part.get_payload(decode=True)
@@ -121,9 +121,11 @@ class EmailService:
                                 # 尝试解码
                                 charset = part.get_content_charset() or 'utf-8'
                                 html_content = payload.decode(charset, errors='replace')
-                                # 简单提取HTML中的文本内容（去除标签）
+                                # 去除CSS样式
+                                cleaned_html = self._remove_css_styles(html_content)
+                                # 提取HTML中的文本内容（去除标签）
                                 import re
-                                text_content = re.sub(r'<[^>]+>', ' ', html_content)
+                                text_content = re.sub(r'<[^>]+>', ' ', cleaned_html)
                                 text_content = re.sub(r'\s+', ' ', text_content).strip()
                                 body_text += text_content
                         except Exception as e:
@@ -148,9 +150,11 @@ class EmailService:
                         if payload:
                             charset = email_message.get_content_charset() or 'utf-8'
                             html_content = payload.decode(charset, errors='replace')
-                            # 简单提取HTML中的文本内容（去除标签）
+                            # 去除CSS样式
+                            cleaned_html = self._remove_css_styles(html_content)
+                            # 提取HTML中的文本内容（去除标签）
                             import re
-                            text_content = re.sub(r'<[^>]+>', ' ', html_content)
+                            text_content = re.sub(r'<[^>]+>', ' ', cleaned_html)
                             text_content = re.sub(r'\s+', ' ', text_content).strip()
                             body_text = text_content
                     except Exception as e:
@@ -160,6 +164,37 @@ class EmailService:
             logger.error(f"提取邮件内容失败: {e}")
 
         return body_text
+    
+    def _remove_css_styles(self, html_content: str) -> str:
+        """
+        处理HTML内容，保留CSS样式但处理&nbsp;字符
+        
+        Args:
+            html_content: 原始HTML内容
+            
+        Returns:
+            str: 处理后的HTML内容
+        """
+        import re
+        
+        # 保留CSS样式，不进行删除
+        cleaned_html = html_content
+        
+        # 处理&nbsp;字符，替换为普通空格
+        cleaned_html = re.sub(r'&nbsp;?', ' ', cleaned_html, flags=re.IGNORECASE)
+        
+        # 处理其他HTML实体
+        cleaned_html = re.sub(r'&amp;?', '&', cleaned_html)
+        cleaned_html = re.sub(r'&lt;?', '<', cleaned_html)
+        cleaned_html = re.sub(r'&gt;?', '>', cleaned_html)
+        cleaned_html = re.sub(r'&quot;?', '"', cleaned_html)
+        
+        # 清理多余的空白字符，但保留HTML结构
+        cleaned_html = re.sub(r'\s+', ' ', cleaned_html)
+        cleaned_html = cleaned_html.strip()
+        cleaned_html = cleaned_html.strip()
+        
+        return cleaned_html
 
     def fetch_emails(self, email_config: EmailConfig, get_body: bool = False, count: int = 5) -> List[EmailContent]:
         """
@@ -242,6 +277,9 @@ class EmailService:
                                 
                                 # 提取正文
                                 body_text = self._extract_email_content(email_message)
+                                
+                                # 处理HTML实体字符
+                                body_text = self._remove_css_styles(body_text)
                                 
                             except Exception as e:
                                 logger.warning(f"获取邮件正文失败 (ID: {msg_id}): {e}")

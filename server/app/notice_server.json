@@ -2,5 +2,9 @@
   {
     "name": "传息",
     "server": "https://cx.super4.cn/push_msg"
+  },
+  {
+    "name": "Telegram",
+    "server": "https://api.telegram.org/"
   }
 ]

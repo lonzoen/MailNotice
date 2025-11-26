@@ -24,6 +24,10 @@ class AccountQuery(BaseModel):
     account: str
 
 
+class EmailSuffixQuery(BaseModel):
+    email_suffix: str
+
+
 class EmailConfigCreate(BaseModel):
     account: str
     auth_code: str
@@ -73,8 +77,15 @@ async def add_config(config_data: EmailConfigCreate):
         config_data.channel_id
     )
     if not config:
-        raise HTTPException(status_code=400, detail="创建失败")
-    return config.__data__
+        return {
+            "success": False,
+            "message": "创建失败"
+        }
+    return {
+        "success": True,
+        "message": "创建成功",
+        "data": config.__data__
+    }
 
 @router.post("/update", response_model=dict)
 async def update_config(config_data: EmailConfigCreate):
@@ -86,22 +97,29 @@ async def update_config(config_data: EmailConfigCreate):
         config_data.channel_id
     )
     if not config:
-        raise HTTPException(status_code=404, detail="配置不存在")
-    return config.__data__
+        return {
+            "success": False,
+            "message": "配置不存在"
+        }
+    return {
+        "success": True,
+        "message": "更新成功",
+        "data": config.__data__
+    }
 
 @router.post("/delete")
 async def remove_config(query: AccountQuery):
     """删除邮箱配置"""
     success = EmailConfigRepository.delete(query.account)
     if not success:
-        raise HTTPException(status_code=404, detail="配置不存在")
-    return {"message": "删除成功"}
-
-@router.post("/get_notice_channels", response_model=List[dict])
-async def get_notice_channels():
-    """获取所有通知渠道"""
-    channels = NotificationChannelRepository.get_all()
-    return [{channel.id: channel.name} for channel in channels]
+        return {
+            "success": False,
+            "message": "配置不存在"
+        }
+    return {
+        "success": True,
+        "message": "删除成功"
+    }
 
 @router.post("/test", response_model=dict)
 async def test_mail_config(config: EmailConfigTest):

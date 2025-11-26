@@ -103,7 +103,7 @@
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="closeDialog">取消</el-button>
-          <el-button type="primary" @click="submitForm">
+          <el-button type="primary" @click="submitForm" :loading="submitting">
             {{ showEditDialog ? '更新' : '创建' }}
           </el-button>
         </span>
@@ -127,6 +127,7 @@ const searchKeyword = ref('')
 const showAddDialog = ref(false)
 const showEditDialog = ref(false)
 const submitting = ref(false)
+const formRef = ref()
 const formData = ref({
     id: null,
     account: '',
@@ -178,11 +179,13 @@ const loadNoticeChannels = async () => {
     const response = await apiClient.getNoticeChannels()
     // 确保response.data是数组，如果不是则转换为数组或使用空数组
     const data = Array.isArray(response.data) ? response.data : []
-    // 将API返回的格式转换为 {channel_id: label} 的映射对象
+    // 将API返回的格式转换为 {channel_id: name} 的映射对象
     const channelsMap = {}
     data.forEach(item => {
-      const [channelId, label] = Object.entries(item)[0]
-      channelsMap[channelId] = label
+      // item对象包含id、name、token、server_name等字段
+      if (item.id && item.name) {
+        channelsMap[item.id] = item.name
+      }
     })
     noticeChannels.value = channelsMap
   } catch (error) {
@@ -277,18 +280,48 @@ const testConfig = async (config) => {
       channel_id: config.channel_id
     }
     
+    console.log('测试邮箱配置数据:', testData)
+    console.log('正在调用API测试邮箱配置...')
+    
     const response = await apiClient.testSingleMailConfig(testData)
     
-    // 检查响应是否包含错误信息（来自API拦截器）
-    if (response.data && typeof response.data === 'object' && response.data.success === false) {
-      // 如果是错误响应，抛出错误让catch块处理
-      throw new Error(response.data.message || '测试邮箱配置失败')
-    }
+    console.log('API响应:', response)
     
-    ElMessage.success('邮箱配置测试成功')
+    // 根据响应结果处理
+    if (response.data) {
+      const result = response.data
+      if (result.success) {
+        ElMessage.success(result.message || '邮箱配置测试成功')
+      } else {
+        ElMessage.error(result.message || '邮箱配置测试失败')
+      }
+    } else {
+      ElMessage.error('服务器响应格式异常')
+    }
   } catch (error) {
     console.error('测试邮箱配置失败:', error)
-    // API拦截器已经显示过错误信息，这里只处理业务逻辑
+    
+    // 处理不同类型的错误
+    if (error.response) {
+      const status = error.response.status
+      const message = error.response.data?.message || error.response.data?.detail || '未知错误'
+      
+      if (status === 405) {
+        ElMessage.error('API请求方法不被允许，请检查接口配置')
+      } else if (status === 404) {
+        ElMessage.error('API接口未找到，请检查路径配置')
+      } else if (status === 422) {
+        ElMessage.error(`请求参数错误: ${message}`)
+      } else if (status >= 500) {
+        ElMessage.error('服务器内部错误，请检查后端服务')
+      } else {
+        ElMessage.error(`请求失败 (${status}): ${message}`)
+      }
+    } else if (error.request) {
+      ElMessage.error('网络连接失败，请检查服务器是否启动')
+    } else {
+      ElMessage.error(`请求配置错误: ${error.message}`)
+    }
   } finally {
     loading.value = false
   }
@@ -303,7 +336,6 @@ const editConfig = (config) => {
 // 删除配置
 const deleteConfig = async (account) => {
   try {
-    
     await apiClient.deleteMailConfig(account)
     mailConfigs.value = mailConfigs.value.filter(config => config.account !== account)
     ElMessage.success('删除成功')
@@ -317,45 +349,64 @@ const deleteConfig = async (account) => {
 
 // 提交表单
 const submitForm = async () => {
-  if (!formRef.value) return
-  await formRef.value.validate(async (valid) => {
-    if (valid) {
-      try {
-        let response
-        if (showEditDialog.value) {
-          // 编辑模式
-          response = await apiClient.updateMailConfig(formData.value.account, {
-            account: formData.value.account,
-            auth_code: formData.value.authorization,
-            server: '',
-            server_name: formData.value.server_name,
-            channel_id: formData.value.channel_id || 1
-          })
+  console.log('Submit button clicked, formRef.value:', formRef.value)
+  
+  if (!formRef.value) {
+    ElMessage.error('表单未准备好，请稍后重试')
+    return
+  }
+  
+  try {
+    // 使用validate方法进行表单验证，返回Promise
+    await new Promise((resolve, reject) => {
+      formRef.value.validate((valid) => {
+        if (valid) {
+          resolve(valid)
         } else {
-          // 新增模式
-          response = await apiClient.createMailConfig({
-            account: formData.value.account,
-            auth_code: formData.value.authorization,
-            server: '',
-            server_name: formData.value.server_name,
-            channel_id: formData.value.channel_id || 1
-          })
+          reject(new Error('表单验证失败'))
         }
-        
-        // 检查响应是否成功
-        if (response.data && response.data.success) {
-          ElMessage.success(showEditDialog.value ? '更新成功' : '添加成功')
-          closeDialog()
-          loadMailConfigs() // 重新加载数据
-        } else {
-          // API拦截器已经显示过错误信息，这里只处理业务逻辑
-        }
-      } catch (error) {
-        console.error('操作失败:', error)
-        // API拦截器已经显示过错误信息，这里只处理业务逻辑
-      }
+      })
+    })
+    
+    submitting.value = true
+    
+    let response
+    if (showEditDialog.value) {
+      // 编辑模式
+      response = await apiClient.updateMailConfig({
+        account: formData.value.account,
+        auth_code: formData.value.authorization,
+        server: '',
+        server_name: formData.value.server_name,
+        channel_id: formData.value.channel_id || 1
+      })
+    } else {
+      // 新增模式
+      response = await apiClient.createMailConfig({
+        account: formData.value.account,
+        auth_code: formData.value.authorization,
+        server: '',
+        server_name: formData.value.server_name,
+        channel_id: formData.value.channel_id || 1
+      })
     }
-  })
+    
+    // 检查响应是否成功
+    if (response.data && response.data.success) {
+      ElMessage.success(showEditDialog.value ? '更新成功' : '添加成功')
+      closeDialog()
+      loadMailConfigs() // 重新加载数据
+    } else {
+      // API拦截器已经显示过错误信息，这里只处理业务逻辑
+    }
+  } catch (error) {
+    console.error('操作失败:', error)
+    if (error.message !== '表单验证失败') {
+      // API拦截器已经显示过错误信息，这里只处理业务逻辑
+    }
+  } finally {
+    submitting.value = false
+  }
 }
 
 // 关闭对话框

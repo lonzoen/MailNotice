@@ -111,12 +111,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
         
         # 检查是否为API路径
         if request.url.path.startswith("/api/"):
-            # 开发模式下任意密码都返回认证通过
+            # 开发模式下不需要密码验证，直接放行
             if self.config.DEBUG:
-                # 继续处理请求，不进行密码验证
                 response = await call_next(request)
                 return response
             
+            # 生产模式需要进行密码验证
             try:
                 # 获取密码（从Header中获取）
                 password = self._extract_password(request)
@@ -179,16 +179,13 @@ class AuthMiddleware(BaseHTTPMiddleware):
         
         # 如果存储的密码为空，任何密码都不会验证通过
         if not stored_password:
-            logger.warning("存储的密码为空，无法进行验证")
             return False
             
         if not password:
-            logger.warning("输入密码为空")
             return False
         
         # 检查密码是否与存储的密码一致
         if password == stored_password:
-            logger.info("密码验证通过")
             return True
         else:
             return False

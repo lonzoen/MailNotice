@@ -3,7 +3,7 @@ import { ElMessage } from 'element-plus'
 
 // API服务配置
 // 直接从环境变量获取API基础URL
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/'
 
 // 获取当前环境
 const APP_ENV = import.meta.env.VITE_APP_ENV || 'production'
@@ -13,7 +13,7 @@ console.log(`当前环境: ${APP_ENV}, API基础URL: ${API_BASE_URL}`)
 // 创建axios实例
 const apiClient = axios.create({
     baseURL: API_BASE_URL,
-    timeout: 5000,
+    timeout: 10000,
     headers: {
         'Content-Type': 'application/json',
     },
@@ -122,7 +122,7 @@ apiClient.testNoticeConfig = (data) => apiClient.post('/notification-channels/te
 // 邮箱配置API方法
 apiClient.getAllMailConfigs = () => apiClient.post('/email-configs/get')
 
-apiClient.getNoticeChannels = () => apiClient.post('/email-configs/get_notice_channels')
+apiClient.getNoticeChannels = () => apiClient.post('/notification-channels/get')
 
 apiClient.createMailConfig = (data) => apiClient.post('/email-configs/add', data)
 
@@ -139,6 +139,34 @@ apiClient.getAllNotificationServers = () => apiClient.post('/notification-channe
 
 // 邮箱服务商API方法
 apiClient.getAllEmailServers = () => apiClient.post('/email-configs/get_servers')
+
+// 邮件记录API方法
+apiClient.getEmailRecords = (params) => apiClient.get('/email-records/', { params })
+
+apiClient.getEmailById = (emailId) => apiClient.get(`/email-records/${emailId}`)
+
+apiClient.createEmailRecord = (data) => apiClient.post('/email-records/', data)
+
+apiClient.updateEmailRecord = (emailId, data) => apiClient.put(`/email-records/${emailId}`, data)
+
+apiClient.deleteEmailRecord = (emailId) => apiClient.delete(`/email-records/${emailId}`)
+
+apiClient.getEmailStatistics = () => apiClient.get('/email-records/statistics/overview')
+
+apiClient.searchEmailRecords = (data) => apiClient.post('/email-records/search', data)
+
+// 移除手动标记邮件状态的功能，发送状态应由系统自动设置
+
+apiClient.getRecentEmails = (hours) => apiClient.get(`/email-records/recent/${hours}`)
+
+apiClient.getEmailsBySentStatus = (sent, limit) => apiClient.get(`/email-records/filter/sent/${sent}`, { params: { limit } })
+
+apiClient.getEmailsByRecipient = (recipient, limit) => apiClient.get(`/email-records/filter/recipient/${encodeURIComponent(recipient)}`, { params: { limit } })
+
+// 新增发送邮件方法
+apiClient.sendEmailManual = (emailId) => apiClient.post('/email-records/send-manual', { email_id: emailId })
+
+apiClient.sendEmailsBatch = (emailIds) => apiClient.post('/email-records/send-batch', { email_ids: emailIds })
 
 // 用户API方法
 

@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 # 导入中间件验证服务
 from app.middleware.auth_middleware import AuthMiddleware
+from config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +63,18 @@ async def login(login_request: LoginRequest):
         LoginResponse: 登录结果
     """
 
-    # 验证密码
+    # 获取配置
+    config = get_config()
+    
+    # 开发模式下始终返回登录成功
+    if config.DEBUG:
+        logger.info(f"开发模式：任意密码登录成功，密码: {login_request.password}")
+        return LoginResponse(
+            success=True,
+            message="登录成功（开发模式）"
+        )
+    
+    # 生产模式需要验证密码
     if validate_password(login_request.password):
         return LoginResponse(
             success=True,

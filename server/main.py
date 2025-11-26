@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from app.api.auth_api import router as auth_router
 from app.api.email_configs_api import router as email_configs_router
 # 邮箱相关API
+from app.api.email_records_api import router as email_records_router
 from app.api.notification_channels_api import router as notification_channels_router
 from app.middleware.auth_middleware import AuthMiddleware
 # 通知相关API
@@ -138,7 +139,7 @@ def create_app(config):
         CORSMiddleware,
         allow_origins=["*"],  # 允许所有服务器来源
         allow_credentials=True,
-        allow_methods=["POST"],
+        allow_methods=["*"],  # 允许所有HTTP方法
         allow_headers=["*"],
     )
 
@@ -148,6 +149,7 @@ def create_app(config):
     
     # 邮箱相关API
     app.include_router(email_configs_router)
+    app.include_router(email_records_router)
 
     # 通知相关API
     app.include_router(notification_channels_router)
