@@ -48,7 +48,7 @@ jobs:
             type=ref,event=branch
             type=ref,event=pr
             type=sha,event=tag
-            ${{ github.event.inputs.custom_tag && format('custom={0}', github.event.inputs.custom_tag) || '' }}
+            ${{ github.event.inputs.custom_tag && format('type=raw,value={0}', github.event.inputs.custom_tag) || '' }}
 
       # 构建并推送Docker镜像到GitHub私有仓库
       - name: Build and push Docker image
