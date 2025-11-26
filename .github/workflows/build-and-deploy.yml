@@ -42,12 +42,12 @@ jobs:
           images: ghcr.io/lonzoen/mailnotice
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value=latest,enable={{is_ref}},event=tag
+            type=raw,value=latest,enable={{is_ref}}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=ref,event=branch
             type=ref,event=pr
-            type=sha
+            type=sha,event=tag
             ${{ github.event.inputs.custom_tag && format('custom={0}', github.event.inputs.custom_tag) || '' }}
 
       # 构建并推送Docker镜像到GitHub私有仓库
