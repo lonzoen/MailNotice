@@ -28,7 +28,7 @@ class Config:
     API_DOCS = True    # 默认开启接口文档
     
     # 静态文件配置
-    STATIC_DIR = os.path.join(BASE_DIR, "static")  # 静态文件目录
+    STATIC_DIR = os.path.join(BASE_DIR, "dist")  # 静态文件目录
 
 
 class DevelopmentConfig(Config):

@@ -154,8 +154,28 @@ def create_app(config):
     # 通知相关API
     app.include_router(notification_channels_router)
 
-    # 挂载静态文件服务
-    app.mount("/", StaticFiles(directory=config.STATIC_DIR, html=True), name="static")
+    # 挂载静态文件服务（处理静态资源）
+    app.mount("/assets", StaticFiles(directory=os.path.join(config.STATIC_DIR, "assets")), name="assets")
+    app.mount("/favicon.ico", StaticFiles(directory=config.STATIC_DIR), name="favicon")
+
+    # 前端路由fallback - 处理前端路由（必须在静态文件挂载之后）
+    from fastapi.responses import FileResponse
+    
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        """单页应用路由fallback - 返回index.html让前端路由处理"""
+        # 对于API路由，直接返回404
+        if full_path.startswith("api/"):
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404, detail="Not Found")
+            
+        # 返回index.html让前端路由处理
+        index_path = os.path.join(config.STATIC_DIR, "index.html")
+        if os.path.exists(index_path):
+            return FileResponse(index_path)
+        else:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404, detail="Not Found")
     
     return app
 

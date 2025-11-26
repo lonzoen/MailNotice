@@ -83,8 +83,8 @@ yarn-error.log*
 # Server specific
 server/.venv/
 server/__pycache__/
-server/static/*
-!server/static/.gitkeep
+server/dist/*
+!server/dist/.gitkeep
 server/data/*
 !server/data/.gitkeep
 

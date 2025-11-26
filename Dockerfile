@@ -43,5 +43,5 @@ EXPOSE 8080
 # 设置环境变量为生产环境
 ENV APP_ENV=prod
 
-# 启动命令
-CMD ["python", "main.py", "--env", "prod"]
+# 启动命令 - 使用环境变量，允许运行时覆盖
+CMD ["sh", "-c", "python main.py --env ${APP_ENV:-prod}"]
