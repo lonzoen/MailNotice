@@ -20,7 +20,7 @@
         v-loading="loading" 
         empty-text="暂无邮件记录数据"
       >
-        <el-table-column prop="sender" label="发件人" min-width="200" />
+        <el-table-column prop="sender" label="发件人" min-width="200"  show-overflow-tooltip/>
         <el-table-column prop="recipient" label="收件人" min-width="120" />
         <el-table-column prop="subject" label="邮件主题" min-width="150" show-overflow-tooltip />
         <el-table-column prop="reception_time" label="接收时间" min-width="120">

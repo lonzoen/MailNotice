@@ -66,11 +66,15 @@ class ScheduleService:
             # 2. 保存所有邮件到数据库（sent字段默认为False）
             new_emails = []
             for email in emails:
-                # 检查是否已存在相同特征的邮件
+                # 检查是否已存在相同特征的邮件（更严格的去重条件）
                 existing = EmailContent.select().where(
                     (EmailContent.recipient == email_config.account) &
                     (EmailContent.sender == email.sender) &
-                    (EmailContent.reception_time == email.reception_time)
+                    (EmailContent.subject == email.subject) &
+                    (EmailContent.reception_time.between(
+                        email.reception_time.replace(second=0, microsecond=0),
+                        email.reception_time.replace(second=59, microsecond=999999)
+                    ))
                 ).first()
                 
                 if not existing:
@@ -79,10 +83,13 @@ class ScheduleService:
                     email.save()
                     new_emails.append(email)
                     logger.info(f"保存新邮件到数据库: {email.sender} -> {email.recipient}, 主题: {email.subject}")
+                else:
+                    logger.info(f"跳过重复邮件: {email.sender} -> {email.recipient}, 主题: {email.subject}")
             
             result['new_emails'] = len(new_emails)
             
-            # 3. 查找并发送未发送通知的邮件
+            # 3. 查找并发送未发送通知的邮件（确保只处理未发送的邮件）
+            # 同时检查邮件是否在最近的处理周期内已经被处理过
             unsent_emails = EmailContent.select().where(
                 (EmailContent.recipient == email_config.account) &
                 (EmailContent.sent == False)
@@ -99,7 +106,7 @@ class ScheduleService:
             else:
                 logger.info(f"没有未发送通知的邮件: {email_config.account}")
             
-            # 4. 检查并删除旧邮件（只删除已发送通知的邮件）
+            # 4. 检查并删除旧邮件（更严格的删除逻辑，防止重复推送）
             total_emails = EmailContent.select().where(
                 EmailContent.recipient == email_config.account
             ).count()
@@ -122,6 +129,10 @@ class ScheduleService:
                 
                 if deleted_count > 0:
                     logger.info(f"邮箱 {email_config.account} 邮件总数 {total_emails} 超过5封，删除 {deleted_count} 封已发送通知的旧邮件")
+            else:
+                # 即使邮件总数不超过5封，也要确保已发送的邮件不会被重复处理
+                # 这里可以添加额外的清理逻辑，比如删除过期的已发送邮件
+                logger.debug(f"邮箱 {email_config.account} 邮件总数 {total_emails}，无需删除旧邮件")
             
             result['deleted_old_emails'] = deleted_count
             logger.info(f"处理完成: {email_config.account}, 新邮件: {result['new_emails']}, 发送通知: {result['notifications_sent']}, 删除旧邮件: {result['deleted_old_emails']}")

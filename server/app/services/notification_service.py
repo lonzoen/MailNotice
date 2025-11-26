@@ -144,8 +144,7 @@ class NotificationService:
             async with bot:
                 await bot.send_message(
                     text=msg,
-                    chat_id=chat_id,
-                    parse_mode='HTML'
+                    chat_id=chat_id
                 )
             
             return {
