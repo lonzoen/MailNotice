@@ -32,10 +32,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY server/ .
 
 # 从第一阶段复制前端构建产物到后端的static目录
-COPY --from=frontend-builder /app/web/dist/ static/
+COPY --from=frontend-builder /app/web/dist/ dist/
 
 # 创建必要的目录
-RUN mkdir -p static
+RUN mkdir -p dist
 
 # 暴露端口
 EXPOSE 8080
