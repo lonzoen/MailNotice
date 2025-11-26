@@ -9,6 +9,9 @@ from pydantic import BaseModel
 from datetime import datetime
 
 from app.repositories.email_record_repository import EmailRecordRepository
+from app.services.notification_service import NotificationService
+from app.repositories.notification_repository import NotificationChannelRepository
+from app.repositories.email_repository import EmailConfigRepository
 
 # 配置日志
 logging.basicConfig(
@@ -50,10 +53,6 @@ class EmailRecordResponse(EmailRecordBase):
     class Config:
         from_attributes = True
 
-
-# 移除统计、搜索、批量操作相关模型 - 页面已简化
-
-
 @router.get("/", response_model=List[EmailRecordResponse])
 async def get_all_emails(
     limit: int = Query(100, ge=1, le=1000, description="每页数量"),
@@ -79,93 +78,6 @@ async def get_all_emails(
         raise HTTPException(status_code=500, detail=f"获取邮件记录失败: {str(e)}")
 
 
-@router.get("/{email_id}", response_model=EmailRecordResponse)
-async def get_email_by_id(email_id: int):
-    """根据ID获取邮件记录"""
-    try:
-        email = EmailRecordRepository.get_by_id(email_id)
-        if not email:
-            raise HTTPException(status_code=404, detail="邮件记录不存在")
-        
-        return {
-            'id': email.id,
-            'sender': email.sender,
-            'recipient': email.recipient,
-            'subject': email.subject,
-            'reception_time': email.reception_time,
-            'body_text': email.body_text,
-            'sent': email.sent
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"获取邮件记录失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"获取邮件记录失败: {str(e)}")
-
-
-@router.post("/", response_model=EmailRecordResponse)
-async def create_email(email_data: EmailRecordCreate):
-    """创建新的邮件记录"""
-    try:
-        email = EmailRecordRepository.create(
-            sender=email_data.sender,
-            recipient=email_data.recipient,
-            subject=email_data.subject,
-            reception_time=email_data.reception_time,
-            body_text=email_data.body_text,
-            sent=email_data.sent
-        )
-        
-        if not email:
-            raise HTTPException(status_code=400, detail="创建邮件记录失败")
-        
-        return {
-            'id': email.id,
-            'sender': email.sender,
-            'recipient': email.recipient,
-            'subject': email.subject,
-            'reception_time': email.reception_time,
-            'body_text': email.body_text,
-            'sent': email.sent
-        }
-    except Exception as e:
-        logger.error(f"创建邮件记录失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"创建邮件记录失败: {str(e)}")
-
-
-@router.put("/{email_id}", response_model=EmailRecordResponse)
-async def update_email(email_id: int, email_data: EmailRecordUpdate):
-    """更新邮件记录"""
-    try:
-        email = EmailRecordRepository.get_by_id(email_id)
-        if not email:
-            raise HTTPException(status_code=404, detail="邮件记录不存在")
-        
-        # 更新字段 - 注意：发送状态(sent)字段不能通过API手动修改
-        if email_data.subject is not None:
-            email.subject = email_data.subject
-        if email_data.body_text is not None:
-            email.body_text = email_data.body_text
-        # 注意：不包含sent字段的更新，发送状态由系统自动管理
-        
-        email.save()
-        
-        return {
-            'id': email.id,
-            'sender': email.sender,
-            'recipient': email.recipient,
-            'subject': email.subject,
-            'reception_time': email.reception_time,
-            'body_text': email.body_text,
-            'sent': email.sent
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"更新邮件记录失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"更新邮件记录失败: {str(e)}")
-
-
 @router.delete("/{email_id}")
 async def delete_email(email_id: int):
     """删除邮件记录 - 仅用于管理员手动清理不必要的邮件记录"""
@@ -181,8 +93,73 @@ async def delete_email(email_id: int):
         logger.error(f"删除邮件记录失败: {str(e)}")
         raise HTTPException(status_code=500, detail=f"删除邮件记录失败: {str(e)}")
 
-# 移除统计、搜索、过滤相关接口 - 页面已简化为仅邮件列表显示
-# 移除搜索、过滤相关接口 - 页面已简化为仅邮件列表显示
+# 手动发送邮件通知请求模型
+class SendManualRequest(BaseModel):
+    """手动发送邮件通知请求"""
+    email_id: int
 
-
-# 移除手动发送和批量发送相关接口 - 发送功能由定时任务自动处理
+# 手动发送邮件通知接口
+@router.post("/send-manual", response_model=dict)
+async def send_email_manual(request: SendManualRequest):
+    """手动发送邮件通知"""
+    email_id = request.email_id
+    try:
+        # 获取邮件记录
+        email = EmailRecordRepository.get_by_id(email_id)
+        if not email:
+            raise HTTPException(status_code=404, detail="邮件记录不存在")
+        
+        # 检查邮件是否已经发送过
+        if email.sent:
+            raise HTTPException(status_code=400, detail="该邮件已经发送过通知")
+        
+        # 获取邮箱配置
+        email_config = EmailConfigRepository.get_by_account(email.recipient)
+        if not email_config:
+            raise HTTPException(status_code=404, detail=f"未找到邮箱配置: {email.recipient}")
+        
+        # 获取通知渠道配置
+        channel = NotificationChannelRepository.get_by_id(int(email_config.channel_id))
+        if not channel:
+            raise HTTPException(status_code=404, detail=f"未找到通知渠道: {email_config.channel_id}")
+        
+        # 构建通知内容
+        content = email.subject if email.subject else "无主题"
+        message = f"发件人：{email.sender}\n" \
+                 f"收件人：{email.recipient}\n" \
+                 f"收件时间：{email.reception_time}\n" \
+                 f"主题：{content}\n" \
+                 f"正文：\n{email.body_text if email.body_text else '无正文内容'}\n"
+        
+        # 发送通知
+        result = await NotificationService.send(
+            name=channel.server_name,
+            key=channel.token,
+            content=content,
+            msg=message,
+            chat_id=channel.chat_id
+        )
+        
+        # 检查发送结果
+        if result and result.get('success', False):
+            # 发送成功，更新sent字段为True
+            email.sent = True
+            email.save()
+            
+            logger.info(f"手动发送邮件通知成功: {email.sender} -> {email.recipient}, 主题: {content[:20]}...")
+            return {
+                "success": True,
+                "message": "邮件通知发送成功",
+                "data": result
+            }
+        else:
+            # 发送失败
+            error_msg = result.get('message', '未知错误') if result else '通知服务返回失败'
+            logger.error(f"手动发送邮件通知失败: {email.sender} -> {email.recipient}, 错误: {error_msg}")
+            raise HTTPException(status_code=500, detail=f"发送通知失败: {error_msg}")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"手动发送邮件通知异常: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"发送通知异常: {str(e)}")
